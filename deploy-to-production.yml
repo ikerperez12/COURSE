@@ -1,0 +1,40 @@
+name: Deploy To Production
+
+on:
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: AppService165561575
+  AZURE_WEBAPP_PACKAGE_PATH: "."
+  DOTNET_VERSION: "8.0.x"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build and publish
+        run: |
+          dotnet restore FruitAPI/FruitAPI.csproj
+          dotnet build FruitAPI/FruitAPI.csproj --configuration Release
+          dotnet publish FruitAPI/FruitAPI.csproj --configuration Release --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/fruitapi"
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to production
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: production
+          package: "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/fruitapi"
